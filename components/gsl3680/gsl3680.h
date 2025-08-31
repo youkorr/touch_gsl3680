@@ -24,16 +24,25 @@ class GSL3680 : public touchscreen::Touchscreen {
 
  protected:
   void reset_();
+  bool get_touches_(uint8_t &touches, uint16_t *x, uint16_t *y);
+
+  // -----------------------------
+  // Méthodes I2C pour ESPHome 2025
+  // -----------------------------
+  bool read_byte_i2c(uint8_t reg, uint8_t *data);
+  bool read_bytes_i2c(uint8_t reg, uint8_t *data, size_t len);
+
+#ifdef GSL3680_ESP32P4_WORKAROUND
   bool read_byte_workaround_(uint8_t reg, uint8_t *data);
   bool read_bytes_workaround_(uint8_t reg, uint8_t *data, size_t len);
-  bool get_touches_(uint8_t &touches, uint16_t *x, uint16_t *y);
-  
+#endif
+
   InternalGPIOPin *interrupt_pin_{nullptr};
   InternalGPIOPin *reset_pin_{nullptr};
   uint8_t i2c_address_{0x40};
   i2c::I2CBus *i2c_bus_{nullptr};
   bool setup_complete_{false};
-  
+
 #ifdef GSL3680_ESP32P4_WORKAROUND
   // Variables pour contourner le conflit I2C sur ESP32-P4
   uint8_t sda_pin_{7};
@@ -45,3 +54,4 @@ class GSL3680 : public touchscreen::Touchscreen {
 
 }  // namespace gsl3680
 }  // namespace esphome
+
