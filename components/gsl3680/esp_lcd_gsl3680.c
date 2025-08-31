@@ -21,13 +21,15 @@
 /* gsl3680 support key num */
 #define ESP_gsl3680_TOUCH_MAX_BUTTONS         (9)
 
-unsigned int gsl_config_data_id[] = {
-    0xccb69a,  
-    0x200,
-    0,0,
-    0,
-    0,0,0,
-    0,0,0,0,0,0,0,0x1cc86fd6,
+
+unsigned int gsl_config_data_id[] =
+{
+	0xccb69a,  
+	0x200,
+	0,0,
+	0,
+	0,0,0,
+	0,0,0,0,0,0,0,0x1cc86fd6,
 
 
 	0x40000d00,0xa,0xe001a,0xe001a,0x3200500,0,0x5100,0x8e00,
@@ -617,25 +619,20 @@ static esp_err_t touch_gsl3680_i2c_read(esp_lcd_touch_handle_t tp, uint16_t reg,
     assert(tp != NULL);
     assert(data != NULL);
 
-    uint8_t reg_buf[2] = {reg >> 8, reg & 0xFF};
-    esp_err_t ret = i2c_master_transmit_receive(tp->i2c_dev, reg_buf, 2, data, len, -1);
-    return ret;
+
+    /* Read data */
+    return esp_lcd_panel_io_rx_param(tp->io, reg, data, len);
+  
 }
 
-static esp_err_t touch_gsl3680_i2c_write(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data, uint8_t len)
+static esp_err_t touch_gsl3680_i2c_write(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data,uint8_t len)
 {
     assert(tp != NULL);
 
-    uint8_t *write_buf = malloc(len + 2);
-    if (!write_buf) return ESP_ERR_NO_MEM;
-    
-    write_buf[0] = reg >> 8;
-    write_buf[1] = reg & 0xFF;
-    memcpy(&write_buf[2], data, len);
-    
-    esp_err_t ret = i2c_master_transmit(tp->i2c_dev, write_buf, len + 2, -1);
-    free(write_buf);
-    return ret;
+    // *INDENT-OFF*
+    // /* Write data */
+    return esp_lcd_panel_io_tx_param(tp->io, reg, data, len);
+    // // *INDENT-ON*
 }
 
 static esp_err_t esp_lcd_touch_gsl3680_load_fw(esp_lcd_touch_handle_t tp)
