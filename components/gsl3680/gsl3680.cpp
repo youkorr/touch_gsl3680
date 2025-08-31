@@ -1,6 +1,7 @@
 #include "gsl3680.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
+#include "driver/i2c.h"
 
 namespace esphome {
 namespace gsl3680 {
@@ -12,7 +13,7 @@ void GSL3680::setup() {
         return;
     }
 
-    // Initialize I2C bus
+    // Initialize I2C bus using the legacy API
     i2c_config_t i2c_conf = {
         .mode = I2C_MODE_MASTER,
         .sda_io_num = static_cast<gpio_num_t>(this->sda_pin_->get_pin()),
