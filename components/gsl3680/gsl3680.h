@@ -20,12 +20,9 @@ class GSL3680 : public touchscreen::Touchscreen, public i2c::I2CDevice {
  protected:
   void reset_controller_();
   bool read_touch_();
-  void IRAM_ATTR handle_interrupt_();
   
   InternalGPIOPin *interrupt_pin_{nullptr};
   InternalGPIOPin *reset_pin_{nullptr};
-  
-  bool touch_detected_{false};
   
   static const char *const TAG;
 };
