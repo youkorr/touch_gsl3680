@@ -8,7 +8,7 @@
 #include "esphome/core/hal.h"
 #include "esp_lcd_gsl3680.h"
 
-DEPENDENCIES = ["i2c"]
+
 
 namespace esphome {
 namespace gsl3680 {
