@@ -3,7 +3,7 @@
 
 #include "driver/i2c_master.h"      // Nouveau driver I2C (driver_ng)
 #include "esp_lcd_touch.h"
-#include "esp_lcd_touch_gsl3680.h"  // ou "esp_lcd_gsl3680.h" selon ton SDK
+#include "esp_lcd_gsl3680.h"  // ou "esp_lcd_gsl3680.h" selon ton SDK
 
 namespace esphome {
 namespace gsl3680 {
