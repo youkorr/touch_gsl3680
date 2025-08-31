@@ -15,7 +15,8 @@ void GSL3680::setup() {
   // Configuration du reset pin
   if (this->reset_pin_ != nullptr) {
     this->reset_pin_->setup();
-    this->reset_pin_->digital_write(false);
+    this->reset_pin_->digital_write(true);  // Maintenir en état haut d'abord
+    delay(10);
   }
   
   // Configuration de l'interrupt pin
@@ -26,28 +27,46 @@ void GSL3680::setup() {
   // Reset du contrôleur tactile
   this->reset_();
   
-  // Attendre que l'appareil soit prêt
-  delay(50);
+  // Attendre plus longtemps que l'appareil soit complètement prêt
+  ESP_LOGI(TAG, "Waiting for GSL3680 to be ready...");
+  delay(200);  // Délai plus long pour la stabilisation
   
-  // Vérification de la communication I2C
-  uint8_t status_reg;
-  if (!this->read_byte(GSL3680_REG_STATUS, &status_reg)) {
-    ESP_LOGE(TAG, "Failed to communicate with GSL3680");
+  // Essayer plusieurs fois la communication I2C
+  bool communication_ok = false;
+  for (int retry = 0; retry < 5; retry++) {
+    uint8_t test_data;
+    if (this->read_byte(GSL3680_REG_STATUS, &test_data)) {
+      ESP_LOGI(TAG, "GSL3680 communication established (attempt %d), status: 0x%02X", retry + 1, test_data);
+      communication_ok = true;
+      break;
+    }
+    ESP_LOGW(TAG, "Communication attempt %d failed, retrying...", retry + 1);
+    delay(100);
+  }
+  
+  if (!communication_ok) {
+    ESP_LOGE(TAG, "Failed to communicate with GSL3680 after 5 attempts");
+    ESP_LOGE(TAG, "Check wiring: SDA/SCL pins, power supply, and I2C address (0x%02X)", this->address_);
     this->mark_failed();
     return;
   }
   
-  ESP_LOGI(TAG, "GSL3680 touchscreen setup completed");
+  ESP_LOGI(TAG, "GSL3680 touchscreen setup completed successfully");
   this->setup_complete_ = true;
 }
 
 void GSL3680::reset_() {
   if (this->reset_pin_ != nullptr) {
     ESP_LOGD(TAG, "Performing hardware reset");
-    this->reset_pin_->digital_write(false);
+    this->reset_pin_->digital_write(true);   // État haut stable
     delay(10);
-    this->reset_pin_->digital_write(true);
-    delay(50);
+    this->reset_pin_->digital_write(false);  // Pulse de reset (actif bas)
+    delay(50);                               // Maintenir le reset
+    this->reset_pin_->digital_write(true);   // Relâcher le reset
+    delay(100);                              // Attendre la stabilisation
+  } else {
+    ESP_LOGW(TAG, "No reset pin configured, attempting soft reset");
+    delay(100);
   }
 }
 
