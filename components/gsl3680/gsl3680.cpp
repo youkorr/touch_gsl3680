@@ -1,177 +1,101 @@
 #include "gsl3680.h"
-#include "esphome/core/log.h"
-#include "esphome/core/helpers.h"
-
-#ifdef GSL3680_ESP32P4_WORKAROUND
-#include "driver/i2c_master.h"
-#include "soc/i2c_reg.h"
-#include "hal/i2c_hal.h"
-#include "driver/gpio.h"
-#endif
 
 namespace esphome {
 namespace gsl3680 {
 
-static const uint8_t GSL3680_REG_STATUS = 0x00;
-static const uint8_t GSL3680_REG_TOUCH_DATA = 0x80;
-
 void GSL3680::setup() {
-  ESP_LOGI(TAG, "Setting up GSL3680 touchscreen...");
-  ESP_LOGI(TAG, "I2C address: 0x%02X", this->i2c_address_);
-
-  if (this->i2c_bus_ == nullptr) {
-    ESP_LOGE(TAG, "I2C bus not configured");
-    this->mark_failed();
-    return;
-  }
-
-  if (this->reset_pin_ != nullptr) {
-    ESP_LOGI(TAG, "Configuring reset pin: GPIO%d", this->reset_pin_->get_pin());
-    this->reset_pin_->setup();
-    this->reset_pin_->digital_write(true);
-    delay(10);
-  }
-
-  if (this->interrupt_pin_ != nullptr) {
-    ESP_LOGI(TAG, "Configuring interrupt pin: GPIO%d", this->interrupt_pin_->get_pin());
-    this->interrupt_pin_->setup();
-  }
-
-#ifdef GSL3680_ESP32P4_WORKAROUND
-  ESP_LOGW(TAG, "Using ESP32-P4 I2C workaround");
-#endif
-
-  this->reset_();
-  delay(200);
-
-  // Test de communication
-  bool communication_ok = false;
-  for (int retry = 0; retry < 5; retry++) {
-    uint8_t test_data;
-#ifdef GSL3680_ESP32P4_WORKAROUND
-    bool read_ok = (this->native_i2c_handle_ != nullptr)
-                       ? this->read_byte_workaround_(GSL3680_REG_STATUS, &test_data)
-                       : this->read_byte_i2c(GSL3680_REG_STATUS, &test_data);
-#else
-    bool read_ok = this->read_byte_i2c(GSL3680_REG_STATUS, &test_data);
-#endif
-    if (read_ok) {
-      ESP_LOGI(TAG, "GSL3680 communication established (attempt %d), status: 0x%02X", retry + 1, test_data);
-      communication_ok = true;
-      break;
+    ESP_LOGI(TAG, "Setting up GSL3680 touchscreen");
+    
+    // Configuration de l'interface I2C pour le touchscreen
+    esp_lcd_panel_io_i2c_config_t tp_io_config = {
+        .dev_addr = this->i2c_address_,
+        .control_phase_bytes = 1,
+        .dc_bit_offset = 0,
+        .lcd_cmd_bits = 0,
+        .lcd_param_bits = 8,
+        .flags = {
+            .dc_low_on_data = 0,
+            .disable_control_phase = 1,
+        },
+    };
+    
+    ESP_LOGI(TAG, "Initialize touch IO (I2C) on bus %d, address 0x%02X", this->i2c_bus_num_, this->i2c_address_);
+    
+    // Utilisation de l'API ESP-IDF native
+    esp_err_t ret = esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)this->i2c_bus_num_, &tp_io_config, &this->tp_io_handle_);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create I2C panel IO: %s", esp_err_to_name(ret));
+        this->mark_failed();
+        return;
     }
-    ESP_LOGW(TAG, "Communication attempt %d failed, retrying...", retry + 1);
-    delay(100);
-  }
-
-  if (!communication_ok) {
-    ESP_LOGE(TAG, "Failed to communicate with GSL3680");
-    this->mark_failed();
-    return;
-  }
-
-  ESP_LOGI(TAG, "GSL3680 touchscreen setup completed successfully");
-  this->setup_complete_ = true;
-}
-
-void GSL3680::reset_() {
-  if (this->reset_pin_ != nullptr) {
-    ESP_LOGD(TAG, "Performing hardware reset");
-    this->reset_pin_->digital_write(true);
-    delay(10);
-    this->reset_pin_->digital_write(false);
-    delay(50);
-    this->reset_pin_->digital_write(true);
-    delay(100);
-  }
-}
-
-bool GSL3680::read_byte_i2c(uint8_t reg, uint8_t *data) {
-  i2c::I2CDevice device;
-  device.set_i2c_bus(this->i2c_bus_);
-  device.set_i2c_address(this->i2c_address_);
-  if (device.write(&reg, 1) != i2c::ERROR_OK) return false;
-  return device.read(data, 1) == i2c::ERROR_OK;
-}
-
-bool GSL3680::read_bytes_i2c(uint8_t reg, uint8_t *data, size_t len) {
-  i2c::I2CDevice device;
-  device.set_i2c_bus(this->i2c_bus_);
-  device.set_i2c_address(this->i2c_address_);
-  if (device.write(&reg, 1) != i2c::ERROR_OK) return false;
-  return device.read(data, len) == i2c::ERROR_OK;
-}
-
-#ifdef GSL3680_ESP32P4_WORKAROUND
-bool GSL3680::read_byte_workaround_(uint8_t reg, uint8_t *data) {
-  if (this->native_i2c_handle_ == nullptr) return read_byte_i2c(reg, data);
-  i2c_master_dev_handle_t dev_handle = static_cast<i2c_master_dev_handle_t>(this->native_i2c_handle_);
-  return i2c_master_transmit_receive(dev_handle, &reg, 1, data, 1, pdMS_TO_TICKS(1000)) == ESP_OK;
-}
-
-bool GSL3680::read_bytes_workaround_(uint8_t reg, uint8_t *data, size_t len) {
-  if (this->native_i2c_handle_ == nullptr) return read_bytes_i2c(reg, data, len);
-  i2c_master_dev_handle_t dev_handle = static_cast<i2c_master_dev_handle_t>(this->native_i2c_handle_);
-  return i2c_master_transmit_receive(dev_handle, &reg, 1, data, len, pdMS_TO_TICKS(1000)) == ESP_OK;
-}
-#endif
-
-void GSL3680::loop() {
-  if (!this->setup_complete_) return;
-
-  if (this->interrupt_pin_ != nullptr && this->interrupt_pin_->digital_read()) return;
-
-  this->update();
+    
+    // Configuration des dimensions selon l'orientation
+    this->x_raw_max_ = this->swap_x_y_ ? this->get_display()->get_native_height() : this->get_display()->get_native_width();
+    this->y_raw_max_ = this->swap_x_y_ ? this->get_display()->get_native_width() : this->get_display()->get_native_height();
+    
+    // Configuration du contrôleur tactile
+    esp_lcd_touch_config_t tp_cfg = {
+        .x_max = static_cast<uint16_t>(this->get_display()->get_native_width()),
+        .y_max = static_cast<uint16_t>(this->get_display()->get_native_height()),
+        .rst_gpio_num = this->reset_pin_ ? static_cast<gpio_num_t>(this->reset_pin_->get_pin()) : GPIO_NUM_NC,
+        .levels = {
+            .reset = 0,
+            .interrupt = 0,
+        },
+        .flags = {
+            .swap_xy = this->swap_x_y_ ? 1U : 0U,
+            .mirror_x = this->mirror_x_ ? 1U : 0U,
+            .mirror_y = this->mirror_y_ ? 1U : 0U,
+        },
+    };
+    
+    ESP_LOGI(TAG, "Initialize touch controller GSL3680");
+    ret = esp_lcd_touch_new_i2c_gsl3680(this->tp_io_handle_, &tp_cfg, &this->tp_);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create GSL3680 touch: %s", esp_err_to_name(ret));
+        this->mark_failed();
+        return;
+    }
+    
+    // Configuration de la broche d'interruption si définie
+    if (this->interrupt_pin_ != nullptr) {
+        this->interrupt_pin_->setup();
+        this->attach_interrupt_(this->interrupt_pin_, gpio::INTERRUPT_FALLING_EDGE);
+    }
+    
+    ESP_LOGI(TAG, "GSL3680 setup completed successfully");
 }
 
 void GSL3680::update_touches() {
-  if (!this->setup_complete_) return;
-
-  uint8_t touches = 0;
-  uint16_t x[10], y[10];
-
-  if (this->get_touches_(touches, x, y) && touches > 0) {
-    for (uint8_t i = 0; i < touches && i < 10; i++) {
-      ESP_LOGV(TAG, "Touch %d: x=%d, y=%d", i, x[i], y[i]);
-      this->add_raw_touch_position_(i, x[i], y[i]);
+    if (this->tp_ == nullptr) {
+        return;
     }
-  }
+    
+    uint16_t x[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
+    uint16_t y[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
+    uint16_t touch_strength[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
+    uint8_t touch_cnt = 0;
+    
+    // Lecture des données tactiles
+    esp_err_t ret = esp_lcd_touch_read_data(this->tp_);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to read touch data: %s", esp_err_to_name(ret));
+        return;
+    }
+    
+    // Récupération des coordonnées
+    bool touchpad_pressed = esp_lcd_touch_get_coordinates(this->tp_, x, y, touch_strength, &touch_cnt, CONFIG_ESP_LCD_TOUCH_MAX_POINTS);
+    
+    if (touchpad_pressed && touch_cnt > 0) {
+        for (int i = 0; i < touch_cnt; i++) {
+            ESP_LOGV(TAG, "Touch point [%d]: x=%d, y=%d, strength=%d", i, x[i], y[i], touch_strength[i]);
+            this->add_raw_touch_position_(i, x[i], y[i]);
+        }
+    }
 }
 
-bool GSL3680::get_touches_(uint8_t &touches, uint16_t *x, uint16_t *y) {
-#ifdef GSL3680_ESP32P4_WORKAROUND
-  bool read_ok = (this->native_i2c_handle_ != nullptr)
-                     ? this->read_byte_workaround_(GSL3680_REG_STATUS, &touches)
-                     : this->read_byte_i2c(GSL3680_REG_STATUS, &touches);
-#else
-  bool read_ok = this->read_byte_i2c(GSL3680_REG_STATUS, &touches);
-#endif
-  if (!read_ok) return false;
-
-  touches &= 0x0F;
-  if (touches == 0 || touches > 10) return touches == 0;
-
-  uint8_t touch_data[60];
-#ifdef GSL3680_ESP32P4_WORKAROUND
-  read_ok = (this->native_i2c_handle_ != nullptr)
-                ? this->read_bytes_workaround_(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6)
-                : this->read_bytes_i2c(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6);
-#else
-  read_ok = this->read_bytes_i2c(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6);
-#endif
-  if (!read_ok) return false;
-
-  for (uint8_t i = 0; i < touches; i++) {
-    uint8_t *data = &touch_data[i * 6];
-    x[i] = (data[1] << 8) | data[0];
-    y[i] = (data[3] << 8) | data[2];
-  }
-
-  return true;
-}
-
-}  // namespace gsl3680
-}  // namespace esphome
+} // namespace gsl3680
+} // namespace esphome
 
 
 
