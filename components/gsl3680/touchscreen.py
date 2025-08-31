@@ -8,6 +8,7 @@ from esphome.const import (
     CONF_RESET_PIN,
 )
 
+DEPENDENCIES = ["i2c"]
 ns_ = cg.esphome_ns.namespace("gsl3680")
 
 cls_ = ns_.class_(
