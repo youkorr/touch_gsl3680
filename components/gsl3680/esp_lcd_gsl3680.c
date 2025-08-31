@@ -617,16 +617,25 @@ static esp_err_t touch_gsl3680_i2c_read(esp_lcd_touch_handle_t tp, uint16_t reg,
     assert(tp != NULL);
     assert(data != NULL);
 
-    /* Read data */
-    return esp_lcd_panel_io_rx_param(tp->io, reg, data, len);
+    uint8_t reg_buf[2] = {reg >> 8, reg & 0xFF};
+    esp_err_t ret = i2c_master_transmit_receive(tp->i2c_dev, reg_buf, 2, data, len, -1);
+    return ret;
 }
 
 static esp_err_t touch_gsl3680_i2c_write(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data, uint8_t len)
 {
     assert(tp != NULL);
 
-    /* Write data */
-    return esp_lcd_panel_io_tx_param(tp->io, reg, data, len);
+    uint8_t *write_buf = malloc(len + 2);
+    if (!write_buf) return ESP_ERR_NO_MEM;
+    
+    write_buf[0] = reg >> 8;
+    write_buf[1] = reg & 0xFF;
+    memcpy(&write_buf[2], data, len);
+    
+    esp_err_t ret = i2c_master_transmit(tp->i2c_dev, write_buf, len + 2, -1);
+    free(write_buf);
+    return ret;
 }
 
 static esp_err_t esp_lcd_touch_gsl3680_load_fw(esp_lcd_touch_handle_t tp)
