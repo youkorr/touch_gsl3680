@@ -2,7 +2,7 @@
 #define _GT911_TOUCH_H
 #include <stdio.h>
 
-class gsl3680_touch
+class gsl3680
 {
 public:
     gsl3680_touch(int8_t sda_pin, int8_t scl_pin, int8_t rst_pin = -1, int8_t int_pin = -1);
