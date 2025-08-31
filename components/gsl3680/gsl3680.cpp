@@ -4,6 +4,12 @@ namespace esphome {
 namespace gsl3680 {
 
 void GSL3680::setup() {
+    // Check if I2C pins are configured
+    if (this->sda_pin_ == nullptr || this->scl_pin_ == nullptr) {
+        ESP_LOGE(TAG, "SDA or SCL pin not configured");
+        return;
+    }
+
     // Initialize I2C master bus
     i2c_master_bus_config_t i2c_bus_config = {
         .i2c_port = I2C_NUM_0,
@@ -16,7 +22,11 @@ void GSL3680::setup() {
         },
     };
     
-    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_config, &this->bus_handle_));
+    esp_err_t err = i2c_new_master_bus(&i2c_bus_config, &this->bus_handle_);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize I2C bus: %s", esp_err_to_name(err));
+        return;
+    }
     
     this->width_ = this->get_display()->get_native_width();
     this->height_ = this->get_display()->get_native_height();
@@ -38,13 +48,21 @@ void GSL3680::setup() {
     };
 
     ESP_LOGI(TAG, "Initialize touch controller gsl3680");
-    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gsl3680(this->bus_handle_, &tp_cfg, &this->tp_));
+    err = esp_lcd_touch_new_i2c_gsl3680(this->bus_handle_, &tp_cfg, &this->tp_);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize GSL3680: %s", esp_err_to_name(err));
+        return;
+    }
 
     this->interrupt_pin_->setup();
     this->attach_interrupt_(this->interrupt_pin_, gpio::INTERRUPT_ANY_EDGE);
 }
 
 void GSL3680::update_touches() {
+    if (this->tp_ == nullptr) {
+        return;
+    }
+
     uint16_t x[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
     uint16_t y[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
     uint16_t touch_strength[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
