@@ -617,35 +617,16 @@ static esp_err_t touch_gsl3680_i2c_read(esp_lcd_touch_handle_t tp, uint16_t reg,
     assert(tp != NULL);
     assert(data != NULL);
 
-    esp_err_t ret;
-    i2c_master_bus_handle_t bus_handle = (i2c_master_bus_handle_t)tp->io;
-    
-    // Create command link
-    i2c_master_transmit_receive_config_t trans_cfg = {
-        .tx_buffer = &reg,
-        .tx_size = 1,
-        .rx_buffer = data,
-        .rx_size = len,
-        .flags = I2C_MASTER_TRANSMIT_RECEIVE_FLAG_NONE
-    };
-    
-    ret = i2c_master_transmit_receive(bus_handle, ESP_LCD_TOUCH_IO_I2C_GSL3680_ADDRESS, &trans_cfg, portMAX_DELAY);
-    return ret;
+    /* Read data */
+    return esp_lcd_panel_io_rx_param(tp->io, reg, data, len);
 }
 
 static esp_err_t touch_gsl3680_i2c_write(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data, uint8_t len)
 {
     assert(tp != NULL);
 
-    esp_err_t ret;
-    i2c_master_bus_handle_t bus_handle = (i2c_master_bus_handle_t)tp->io;
-    
-    uint8_t write_buf[len + 1];
-    write_buf[0] = reg;
-    memcpy(&write_buf[1], data, len);
-    
-    ret = i2c_master_transmit(bus_handle, ESP_LCD_TOUCH_IO_I2C_GSL3680_ADDRESS, write_buf, len + 1, portMAX_DELAY);
-    return ret;
+    /* Write data */
+    return esp_lcd_panel_io_tx_param(tp->io, reg, data, len);
 }
 
 static esp_err_t esp_lcd_touch_gsl3680_load_fw(esp_lcd_touch_handle_t tp)
