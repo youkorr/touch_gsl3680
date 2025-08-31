@@ -6,7 +6,7 @@
 #include "driver/i2c.h"
 #include "esp_lcd_touch.h"
 #include "esp_lcd_gsl3680.h"
-#include "gsl3680_touch.h"
+#include "gsl3680.h"
 
 #define CONFIG_LCD_HRES 800
 #define CONFIG_LCD_VRES 1280
