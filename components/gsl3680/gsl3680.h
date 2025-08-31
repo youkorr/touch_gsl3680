@@ -4,7 +4,10 @@
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 #include "esphome/components/touchscreen/touchscreen.h"
-#include "esphome/components/i2c/i2c.h"
+
+#ifdef USE_ESP32
+#include "driver/i2c_master.h"
+#endif
 
 namespace esphome {
 namespace gsl3680 {
@@ -20,7 +23,11 @@ class GSL3680 : public touchscreen::Touchscreen {
   void set_interrupt_pin(InternalGPIOPin *interrupt_pin) { interrupt_pin_ = interrupt_pin; }
   void set_reset_pin(InternalGPIOPin *reset_pin) { reset_pin_ = reset_pin; }
   void set_i2c_address(uint8_t address) { i2c_address_ = address; }
-  void set_i2c_bus(i2c::I2CBus *bus) { i2c_bus_ = bus; }
+  void set_i2c_pins(uint8_t sda_pin, uint8_t scl_pin) { 
+    sda_pin_ = sda_pin; 
+    scl_pin_ = scl_pin; 
+  }
+  void set_i2c_frequency(uint32_t frequency) { i2c_frequency_ = frequency; }
 
  protected:
   void reset_();
@@ -31,11 +38,16 @@ class GSL3680 : public touchscreen::Touchscreen {
   InternalGPIOPin *interrupt_pin_{nullptr};
   InternalGPIOPin *reset_pin_{nullptr};
   uint8_t i2c_address_{0x40};
-  i2c::I2CBus *i2c_bus_{nullptr};
+  uint8_t sda_pin_{7};
+  uint8_t scl_pin_{8};
+  uint32_t i2c_frequency_{100000};
   bool setup_complete_{false};
   
+#ifdef USE_ESP32
   // Handle I2C natif ESP-IDF pour ESP32-P4
-  void *i2c_master_dev_handle_{nullptr};
+  i2c_master_bus_handle_t i2c_master_bus_handle_{nullptr};
+  i2c_master_dev_handle_t i2c_master_dev_handle_{nullptr};
+#endif
 };
 
 }  // namespace gsl3680
