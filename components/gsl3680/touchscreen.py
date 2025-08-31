@@ -6,6 +6,8 @@ from esphome.const import (
     CONF_ID, 
     CONF_INTERRUPT_PIN, 
     CONF_RESET_PIN,
+    CONF_SDA_PIN,
+    CONF_SCL_PIN,
 )
 
 ns_ = cg.esphome_ns.namespace("gsl3680")
@@ -22,12 +24,13 @@ CONFIG_SCHEMA = (
         {
             cv.GenerateID(): cv.declare_id(cls_),
             cv.Required(CONF_INTERRUPT_PIN): pins.internal_gpio_input_pin_schema,
-            cv.Required(CONF_RESET_PIN): pins.internal_gpio_input_pin_schema,
+            cv.Required(CONF_RESET_PIN): pins.internal_gpio_output_pin_schema,
+            cv.Required(CONF_SDA_PIN): pins.internal_gpio_output_pin_schema,
+            cv.Required(CONF_SCL_PIN): pins.internal_gpio_output_pin_schema,
         }
     )
     .extend(i2c.i2c_device_schema(0x40))
 )
-
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
@@ -36,3 +39,5 @@ async def to_code(config):
 
     cg.add(var.set_interrupt_pin(await cg.gpio_pin_expression(config.get(CONF_INTERRUPT_PIN))))
     cg.add(var.set_reset_pin(await cg.gpio_pin_expression(config.get(CONF_RESET_PIN))))
+    cg.add(var.set_sda_pin(await cg.gpio_pin_expression(config.get(CONF_SDA_PIN))))
+    cg.add(var.set_scl_pin(await cg.gpio_pin_expression(config.get(CONF_SCL_PIN))))
