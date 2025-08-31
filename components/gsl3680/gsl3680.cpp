@@ -1,4 +1,6 @@
 #include "gsl3680.h"
+#include "esp_lcd_panel_io.h"
+#include "esp_lcd_panel_ops.h"
 
 namespace esphome {
 namespace gsl3680 {
@@ -10,21 +12,46 @@ void GSL3680::setup() {
         return;
     }
 
-    // Initialize I2C master bus
-    i2c_master_bus_config_t i2c_bus_config = {
-        .i2c_port = I2C_NUM_0,
+    // Initialize I2C bus
+    i2c_config_t i2c_conf = {
+        .mode = I2C_MODE_MASTER,
         .sda_io_num = static_cast<gpio_num_t>(this->sda_pin_->get_pin()),
         .scl_io_num = static_cast<gpio_num_t>(this->scl_pin_->get_pin()),
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .flags = {
-            .enable_internal_pullup = true,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master = {
+            .clk_speed = 400000,
         },
     };
     
-    esp_err_t err = i2c_new_master_bus(&i2c_bus_config, &this->bus_handle_);
+    esp_err_t err = i2c_param_config(I2C_NUM_0, &i2c_conf);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize I2C bus: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Failed to configure I2C: %s", esp_err_to_name(err));
+        return;
+    }
+    
+    err = i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to install I2C driver: %s", esp_err_to_name(err));
+        return;
+    }
+
+    // Create LCD panel IO handle
+    esp_lcd_panel_io_i2c_config_t io_config = {
+        .dev_addr = ESP_LCD_TOUCH_IO_I2C_GSL3680_ADDRESS,
+        .control_phase_bytes = 1,
+        .dc_bit_offset = 0,
+        .lcd_cmd_bits = 8,
+        .lcd_param_bits = 8,
+        .flags = {
+            .disable_control_phase = 1,
+        },
+    };
+    
+    esp_lcd_panel_io_handle_t io_handle;
+    err = esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)I2C_NUM_0, &io_config, &io_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create panel IO: %s", esp_err_to_name(err));
         return;
     }
     
@@ -48,7 +75,7 @@ void GSL3680::setup() {
     };
 
     ESP_LOGI(TAG, "Initialize touch controller gsl3680");
-    err = esp_lcd_touch_new_i2c_gsl3680(this->bus_handle_, &tp_cfg, &this->tp_);
+    err = esp_lcd_touch_new_i2c_gsl3680(io_handle, &tp_cfg, &this->tp_);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize GSL3680: %s", esp_err_to_name(err));
         return;
