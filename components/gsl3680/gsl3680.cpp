@@ -18,16 +18,14 @@ void GSL3680::setup() {
   // Reset du contrôleur
   this->reset_controller_();
   
-  // Configuration de l'interruption
+  // Configuration de l'interruption (optionnelle, juste setup)
   if (this->interrupt_pin_) {
     this->interrupt_pin_->setup();
-    this->interrupt_pin_->attach_interrupt([this](bool state) { 
-      this->handle_interrupt_(); 
-    }, gpio::INTERRUPT_FALLING_EDGE);
   }
   
-  // Initialisation I2C - utiliser l'API ESPHome
-  if (!this->write_byte(GSL_PAGE_REG, 0x00)) {
+  // Test de communication I2C
+  uint8_t test_data;
+  if (!this->read_byte(GSL_STATUS_REG, &test_data)) {
     ESP_LOGE(TAG, "Failed to communicate with GSL3680");
     this->mark_failed();
     return;
@@ -49,6 +47,8 @@ void GSL3680::dump_config() {
   LOG_I2C_DEVICE(this);
   LOG_PIN("  Interrupt Pin: ", this->interrupt_pin_);
   LOG_PIN("  Reset Pin: ", this->reset_pin_);
+  ESP_LOGCONFIG(TAG, "  X raw max: %d", this->x_raw_max_);
+  ESP_LOGCONFIG(TAG, "  Y raw max: %d", this->y_raw_max_);
 }
 
 void GSL3680::reset_controller_() {
@@ -62,19 +62,8 @@ void GSL3680::reset_controller_() {
   }
 }
 
-void IRAM_ATTR GSL3680::handle_interrupt_() {
-  this->touch_detected_ = true;
-}
-
 void GSL3680::update_touches() {
-  if (!this->touch_detected_) {
-    return;
-  }
-  this->touch_detected_ = false;
-  
-  if (!this->read_touch_()) {
-    return;
-  }
+  this->read_touch_();
 }
 
 bool GSL3680::read_touch_() {
@@ -89,6 +78,8 @@ bool GSL3680::read_touch_() {
     return false;
   }
   
+  ESP_LOGV(TAG, "Touch count: %d", touch_count);
+  
   // Lire les données tactiles
   uint8_t data[4 * 10];  // Max 10 touches, 4 bytes par toucher
   if (!this->read_bytes(GSL_DATA_REG, data, 4 * touch_count)) {
@@ -100,6 +91,8 @@ bool GSL3680::read_touch_() {
   for (uint8_t i = 0; i < touch_count && i < 10; i++) {
     uint16_t x = (data[i * 4 + 1] << 8) | data[i * 4];
     uint16_t y = (data[i * 4 + 3] << 8) | data[i * 4 + 2];
+    
+    ESP_LOGV(TAG, "Raw touch %d: x=%d, y=%d", i, x, y);
     
     // Appliquer les transformations
     if (this->swap_x_y_) {
@@ -114,8 +107,11 @@ bool GSL3680::read_touch_() {
     
     // Vérifier les limites
     if (x <= this->x_raw_max_ && y <= this->y_raw_max_) {
-      ESP_LOGV(TAG, "Touch %d: x=%d, y=%d", i, x, y);
+      ESP_LOGD(TAG, "Touch %d: x=%d, y=%d", i, x, y);
       this->add_raw_touch_position_(i, x, y);
+    } else {
+      ESP_LOGW(TAG, "Touch %d out of bounds: x=%d, y=%d (max: %d, %d)", 
+               i, x, y, this->x_raw_max_, this->y_raw_max_);
     }
   }
   
