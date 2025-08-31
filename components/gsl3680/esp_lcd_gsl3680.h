@@ -2,7 +2,6 @@
 #define _LCD_GSL3680_H
 
 #include "esp_lcd_touch.h"
-#include "driver/i2c_master.h"
 
 
 #define MAX_FINGER_NUM      3
