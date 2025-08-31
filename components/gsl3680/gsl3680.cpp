@@ -24,22 +24,21 @@ void GSL3680::setup() {
     this->x_raw_max_ = this->swap_x_y_ ? this->get_display()->get_native_height() : this->get_display()->get_native_width();
     this->y_raw_max_ = this->swap_x_y_ ? this->get_display()->get_native_width() : this->get_display()->get_native_height();
 
-    // Exemple d'initialisation I2C : écrire un seul registre (adaptable)
-    uint8_t reg = 0x00;
-    uint8_t val = 0x00;
-    if (!this->write(reg, &val, 1)) {
-        ESP_LOGW(TAG, "Failed to write initialization byte 0x%02X", reg);
+    // Exemple d'initialisation I2C : séquence avec registre + valeur
+    uint8_t init_buf[] = {0x00, 0x00}; // registre 0x00 = valeur 0x00
+    if (this->write(init_buf, sizeof(init_buf)) != i2c::ERROR_OK) {
+        ESP_LOGW(TAG, "Failed to write initialization bytes");
     }
 
     ESP_LOGI(TAG, "GSL3680 touchscreen initialized via ESPHome I2C");
 }
 
 void GSL3680::update_touches() {
-    uint8_t buf[6 * CONFIG_ESP_LCD_TOUCH_MAX_POINTS];  // Buffer pour lire les touches
+    uint8_t reg = 0x00; // registre à lire
+    uint8_t buf[CONFIG_ESP_LCD_TOUCH_MAX_POINTS * 6]; // buffer de lecture
 
-    // Lecture via i2c::I2CDevice::read
-    uint8_t reg = 0x00;  // Adresse registre touch, à adapter selon le protocole GSL3680
-    if (!this->read(reg, buf, sizeof(buf))) {
+    // Lire les coordonnées : envoyer le registre puis lire le buffer
+    if (this->write_read(&reg, 1, buf, sizeof(buf)) != i2c::ERROR_OK) {
         ESP_LOGW(TAG, "Failed to read touch data");
         return;
     }
@@ -57,5 +56,6 @@ void GSL3680::update_touches() {
 
 }
 }
+
 
 
