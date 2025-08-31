@@ -20,16 +20,21 @@ class GSL3680 : public touchscreen::Touchscreen, public i2c::I2CDevice {
 
         void set_interrupt_pin(InternalGPIOPin *pin) { this->interrupt_pin_ = pin; }
         void set_reset_pin(InternalGPIOPin *pin) { this->reset_pin_ = pin; }
+        void set_sda_pin(InternalGPIOPin *pin) { this->sda_pin_ = pin; }
+        void set_scl_pin(InternalGPIOPin *pin) { this->scl_pin_ = pin; }
 
     protected:
         InternalGPIOPin *interrupt_pin_{};
         InternalGPIOPin *reset_pin_{};
+        InternalGPIOPin *sda_pin_{};
+        InternalGPIOPin *scl_pin_{};
         size_t width_ = 1280;
         size_t height_ = 800;
         esp_lcd_touch_handle_t tp_{};
-        esp_lcd_panel_io_handle_t tp_io_handle_{};
+        i2c_master_bus_handle_t bus_handle_{};
 };
 
 }
 }
+
 
