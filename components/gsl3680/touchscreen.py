@@ -8,9 +8,8 @@ from esphome.const import (
     CONF_RESET_PIN,
 )
 
-DEPENDENCIES = ["i2c"]
-
 ns_ = cg.esphome_ns.namespace("gsl3680")
+
 cls_ = ns_.class_(
     "GSL3680",
     touchscreen.Touchscreen,
@@ -23,22 +22,17 @@ CONFIG_SCHEMA = (
         {
             cv.GenerateID(): cv.declare_id(cls_),
             cv.Required(CONF_INTERRUPT_PIN): pins.internal_gpio_input_pin_schema,
-            cv.Required(CONF_RESET_PIN): pins.internal_gpio_output_pin_schema,  # Changé en output
+            cv.Required(CONF_RESET_PIN): pins.internal_gpio_input_pin_schema,
         }
     )
     .extend(i2c.i2c_device_schema(0x40))
 )
 
+
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await touchscreen.register_touchscreen(var, config)
     await i2c.register_i2c_device(var, config)
-    
-    # Configuration des pins avec vérification
-    if CONF_INTERRUPT_PIN in config:
-        interrupt_pin = await cg.gpio_pin_expression(config[CONF_INTERRUPT_PIN])
-        cg.add(var.set_interrupt_pin(interrupt_pin))
-    
-    if CONF_RESET_PIN in config:
-        reset_pin = await cg.gpio_pin_expression(config[CONF_RESET_PIN])
-        cg.add(var.set_reset_pin(reset_pin))
+
+    cg.add(var.set_interrupt_pin(await cg.gpio_pin_expression(config.get(CONF_INTERRUPT_PIN))))
+    cg.add(var.set_reset_pin(await cg.gpio_pin_expression(config.get(CONF_RESET_PIN))))
