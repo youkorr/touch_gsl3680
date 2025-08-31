@@ -26,9 +26,9 @@ CONFIG_SCHEMA = (
             cv.Required(CONF_INTERRUPT_PIN): pins.internal_gpio_input_pin_schema,
             cv.Required(CONF_RESET_PIN): pins.internal_gpio_output_pin_schema,
             cv.Optional(CONF_ADDRESS, default=0x40): cv.i2c_address,
-            cv.Optional(CONF_SDA, default=7): pins.internal_gpio_output_pin_number,
-            cv.Optional(CONF_SCL, default=8): pins.internal_gpio_output_pin_number,
-            cv.Optional(CONF_FREQUENCY, default="100kHz"): cv.frequency,
+            cv.Optional(CONF_SDA): pins.internal_gpio_output_pin_number,
+            cv.Optional(CONF_SCL): pins.internal_gpio_output_pin_number,
+            cv.Optional(CONF_FREQUENCY): cv.frequency,
         }
     )
 )
