@@ -6,14 +6,9 @@ namespace esphome {
 namespace gsl3680 {
 
 void GSL3680::setup() {
-    // Use ESPHome's I2C component instead of managing I2C ourselves
-    // This avoids the driver conflict
-    
     this->width_ = this->get_display()->get_native_width();
     this->height_ = this->get_display()->get_native_height();
 
-    // The I2C bus is already initialized by ESPHome's I2C component
-    // We just need to create the panel IO handle
     
     esp_lcd_panel_io_i2c_config_t io_config = {
         .dev_addr = ESP_LCD_TOUCH_IO_I2C_GSL3680_ADDRESS,
@@ -27,7 +22,7 @@ void GSL3680::setup() {
     };
     
     esp_lcd_panel_io_handle_t io_handle;
-    esp_err_t err = esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)this->get_i2c_bus(), &io_config, &io_handle);
+    esp_err_t err = esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)I2C_NUM_0, &io_config, &io_handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to create panel IO: %s", esp_err_to_name(err));
         return;
@@ -83,6 +78,7 @@ void GSL3680::update_touches() {
 
 }
 }
+
 
 
 
