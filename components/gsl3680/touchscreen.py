@@ -23,8 +23,6 @@ CONFIG_SCHEMA = (
             cv.GenerateID(): cv.declare_id(cls_),
             cv.Required(CONF_INTERRUPT_PIN): pins.internal_gpio_input_pin_schema,
             cv.Required(CONF_RESET_PIN): pins.internal_gpio_output_pin_schema,
-            cv.Optional("sda_pin"): pins.internal_gpio_output_pin_schema,
-            cv.Optional("scl_pin"): pins.internal_gpio_output_pin_schema,
         }
     )
     .extend(i2c.i2c_device_schema(0x40))
@@ -37,8 +35,3 @@ async def to_code(config):
 
     cg.add(var.set_interrupt_pin(await cg.gpio_pin_expression(config.get(CONF_INTERRUPT_PIN))))
     cg.add(var.set_reset_pin(await cg.gpio_pin_expression(config.get(CONF_RESET_PIN))))
-    
-    if "sda_pin" in config:
-        cg.add(var.set_sda_pin(await cg.gpio_pin_expression(config.get("sda_pin"))))
-    if "scl_pin" in config:
-        cg.add(var.set_scl_pin(await cg.gpio_pin_expression(config.get("scl_pin"))))
