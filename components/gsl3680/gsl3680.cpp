@@ -1,5 +1,4 @@
 #include "gsl3680.h"
-#include "driver/i2c.h"
 
 namespace esphome {
 namespace gsl3680 {
@@ -10,21 +9,6 @@ void GSL3680::setup() {
         ESP_LOGE(TAG, "Reset or interrupt pin not configured!");
         return;
     }
-
-    // Configuration du bus I2C
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = SDA_PIN,  // Remplacez par votre broche SDA
-        .scl_io_num = SCL_PIN,  // Remplacez par votre broche SCL
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master = {
-            .clk_speed = 400000,  // Vitesse du bus I2C (400 kHz)
-        },
-    };
-
-    ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-    ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0));
 
     // Initialisation des paramètres du contrôleur tactile
     esp_lcd_touch_config_t tp_cfg = {
@@ -44,7 +28,7 @@ void GSL3680::setup() {
 
     // Initialisation du contrôleur tactile GSL3680
     ESP_LOGI(TAG, "Initialize touch controller gsl3680");
-    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gsl3680(nullptr, &tp_cfg, &this->tp_));
+    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gsl3680(this->get_i2c_bus(), &tp_cfg, &this->tp_));
 
     // Configuration de la broche d'interruption
     this->interrupt_pin_->setup();
