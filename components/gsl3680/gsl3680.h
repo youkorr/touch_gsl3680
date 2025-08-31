@@ -13,7 +13,7 @@ namespace gsl3680 {
 
 constexpr static const char *const TAG = "touchscreen.gsl3680";
 
-class GSL3680 : public touchscreen::Touchscreen, public i2c::I2CDevice {
+class GSL3680 : public touchscreen::Touchscreen {
 public:
     void setup() override;
     void update_touches() override;
@@ -31,6 +31,9 @@ public:
     void set_mirror_x(bool mirror) { this->mirror_x_ = mirror; }
     void set_mirror_y(bool mirror) { this->mirror_y_ = mirror; }
 
+    // Setter pour le bus I2C
+    void set_i2c_bus(i2c::I2CBus *bus) { this->i2c_ = bus; }
+
 protected:
     InternalGPIOPin *interrupt_pin_{nullptr};  // Broche d'interruption
     InternalGPIOPin *reset_pin_{nullptr};      // Broche de réinitialisation
@@ -42,8 +45,8 @@ protected:
     bool mirror_x_ = false;  // Inversion de l'axe X
     bool mirror_y_ = false;  // Inversion de l'axe Y
 
-    esp_lcd_touch_handle_t tp_{nullptr};                  // Handle du contrôleur tactile
-    esp_lcd_panel_io_handle_t tp_io_handle_{nullptr};     // Handle du bus I2C pour le tactile
+    i2c::I2CBus *i2c_{nullptr};                // Référence au bus I2C
+    esp_lcd_touch_handle_t tp_{nullptr};       // Handle du contrôleur tactile
 };
 
 }  // namespace gsl3680
