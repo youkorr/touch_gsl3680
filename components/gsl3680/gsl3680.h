@@ -31,7 +31,6 @@ class GSL3680 : public touchscreen::Touchscreen, public i2c::I2CDevice {
         size_t width_ = 1280;
         size_t height_ = 800;
         esp_lcd_touch_handle_t tp_{};
-        i2c_master_bus_handle_t bus_handle_{};
 };
 
 }
