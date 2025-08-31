@@ -4,9 +4,13 @@
 namespace esphome {
 namespace gsl3680 {
 
-static const char *TAG = "gsl3680";
-
 void GSL3680::setup() {
+    // Vérification des broches d'interruption et de réinitialisation
+    if (!this->reset_pin_ || !this->interrupt_pin_) {
+        ESP_LOGE(TAG, "Reset or interrupt pin not configured!");
+        return;
+    }
+
     // Configuration du bus I2C
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
@@ -14,7 +18,9 @@ void GSL3680::setup() {
         .scl_io_num = SCL_PIN,  // Remplacez par votre broche SCL
         .sda_pullup_en = GPIO_PULLUP_ENABLE,
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = 400000,  // Vitesse du bus I2C (400 kHz)
+        .master = {
+            .clk_speed = 400000,  // Vitesse du bus I2C (400 kHz)
+        },
     };
 
     ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
@@ -22,15 +28,15 @@ void GSL3680::setup() {
 
     // Initialisation des paramètres du contrôleur tactile
     esp_lcd_touch_config_t tp_cfg = {
-        .x_max = this->get_display()->get_native_width(),
-        .y_max = this->get_display()->get_native_height(),
+        .x_max = this->width_,  // Utilise les dimensions configurables
+        .y_max = this->height_,
         .rst_gpio_num = (gpio_num_t)this->reset_pin_->get_pin(),
         .levels = {
             .reset = 0,
             .interrupt = 0,
         },
         .flags = {
-            .swap_xy = this->swap_x_y_,
+            .swap_xy = this->swap_x_y_,  // Utilise les paramètres de transformation
             .mirror_x = this->mirror_x_,
             .mirror_y = this->mirror_y_,
         },
