@@ -5,7 +5,7 @@
 namespace esphome {
 namespace gsl3680 {
 
-static const char *const TAG = "gsl3680";
+static const char *TAG = "gsl3680";
 
 // Registres GSL3680
 static const uint8_t GSL_DATA_REG = 0x80;
