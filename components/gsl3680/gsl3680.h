@@ -24,7 +24,6 @@ class GSL3680 : public touchscreen::Touchscreen, public i2c::I2CDevice {
   InternalGPIOPin *interrupt_pin_{nullptr};
   InternalGPIOPin *reset_pin_{nullptr};
 };
-};
 
 }  // namespace gsl3680
 }  // namespace esphome
