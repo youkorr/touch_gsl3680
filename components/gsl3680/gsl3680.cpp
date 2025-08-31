@@ -3,7 +3,7 @@
 namespace esphome {
 namespace gsl3680 {
 
-DEPENDENCIES = ["i2c"]
+
 
 void GSL3680::setup() {
 
