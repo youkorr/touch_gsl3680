@@ -22,13 +22,12 @@
 #define ESP_gsl3680_TOUCH_MAX_BUTTONS         (9)
 
 unsigned int gsl_config_data_id[] = {
-{
-	0xccb69a,  
-	0x200,
-	0,0,
-	0,
-	0,0,0,
-	0,0,0,0,0,0,0,0x1cc86fd6,
+    0xccb69a,  
+    0x200,
+    0,0,
+    0,
+    0,0,0,
+    0,0,0,0,0,0,0,0x1cc86fd6,
 
 
 	0x40000d00,0xa,0xe001a,0xe001a,0x3200500,0,0x5100,0x8e00,
