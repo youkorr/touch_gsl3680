@@ -52,8 +52,6 @@ async def to_code(config):
     cg.add(var.set_interrupt_pin(await cg.gpio_pin_expression(config.get(CONF_INTERRUPT_PIN))))
     cg.add(var.set_reset_pin(await cg.gpio_pin_expression(config.get(CONF_RESET_PIN))))
 
-    # SDA/SCL et adresse I2C pour driver_ng
-    cg.add(var.set_sda_pin(config[CONF_SDA]))
-    cg.add(var.set_scl_pin(config[CONF_SCL]))
+
     cg.add(var.set_address(config.get("address", 0x40)))  # 0x40 par défaut
 
