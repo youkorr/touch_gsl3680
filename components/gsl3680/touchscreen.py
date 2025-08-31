@@ -7,10 +7,9 @@ from esphome.const import (
     CONF_INTERRUPT_PIN, 
     CONF_RESET_PIN,
     CONF_ADDRESS,
-    CONF_SDA,
-    CONF_SCL,
-    CONF_FREQUENCY,
 )
+
+DEPENDENCIES = ["i2c"]
 
 ns_ = cg.esphome_ns.namespace("gsl3680")
 cls_ = ns_.class_(
@@ -26,21 +25,19 @@ CONFIG_SCHEMA = (
             cv.Required(CONF_INTERRUPT_PIN): pins.internal_gpio_input_pin_schema,
             cv.Required(CONF_RESET_PIN): pins.internal_gpio_output_pin_schema,
             cv.Optional(CONF_ADDRESS, default=0x40): cv.i2c_address,
-            cv.Optional(CONF_SDA): pins.internal_gpio_output_pin_number,
-            cv.Optional(CONF_SCL): pins.internal_gpio_output_pin_number,
-            cv.Optional(CONF_FREQUENCY): cv.frequency,
         }
     )
+    .extend(i2c.i2c_device_schema(0x40))
 )
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await touchscreen.register_touchscreen(var, config)
     
-    # Configuration I2C directe
+    # Récupération de la configuration I2C d'ESPHome
+    i2c_bus = await cg.get_variable(config["i2c_id"])
+    cg.add(var.set_i2c_bus(i2c_bus))
     cg.add(var.set_i2c_address(config[CONF_ADDRESS]))
-    cg.add(var.set_i2c_pins(config[CONF_SDA], config[CONF_SCL]))
-    cg.add(var.set_i2c_frequency(int(config[CONF_FREQUENCY])))
     
     # Configuration des pins
     if CONF_INTERRUPT_PIN in config:
@@ -50,3 +47,6 @@ async def to_code(config):
     if CONF_RESET_PIN in config:
         reset_pin = await cg.gpio_pin_expression(config[CONF_RESET_PIN])
         cg.add(var.set_reset_pin(reset_pin))
+    
+    # Ajout spécial pour ESP32-P4 : contournement du conflit I2C
+    cg.add_define("GSL3680_ESP32P4_WORKAROUND")
