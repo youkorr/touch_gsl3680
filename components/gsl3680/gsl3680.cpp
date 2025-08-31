@@ -1,5 +1,4 @@
 #include "gsl3680.h"
-#include "esphome/components/i2c/i2c_bus_esp_idf.h"
 
 namespace esphome {
 namespace gsl3680 {
@@ -7,24 +6,32 @@ namespace gsl3680 {
 void GSL3680::setup() {
     ESP_LOGI(TAG, "Initialize touch IO (I2C)");
     
-    // MÉTHODE 1: Essayer d'obtenir le handle depuis ESPHome
-    esp_lcd_i2c_bus_handle_t i2c_bus_handle = nullptr;
+    // SOLUTION: Créer notre propre bus I2C pour ESP-LCD
+    // au lieu d'utiliser le cast (esp_lcd_i2c_bus_handle_t)I2C_NUM_0
     
-    // Récupérer le bus I2C ESPHome
-    auto *bus = static_cast<esphome::i2c::ESPIDFAPI*>(this->parent_);
-    if (bus) {
-        // Si possible, récupérer le handle natif ESP-IDF
-        i2c_port_t port = bus->get_port();
-        i2c_bus_handle = (esp_lcd_i2c_bus_handle_t)port;
-        ESP_LOGD(TAG, "Using ESPHome I2C port: %d", port);
-    } else {
-        ESP_LOGW(TAG, "Could not get I2C bus from ESPHome, using I2C_NUM_0 directly");
+    // Étape 1: Créer un bus I2C ESP-LCD séparé
+    esp_lcd_i2c_bus_config_t i2c_bus_config = {
+        .i2c_port = I2C_NUM_0,  // Port I2C par défaut
+        .sda_io_num = (gpio_num_t)this->parent_->get_sda_pin(),  // Récupérer SDA depuis ESPHome
+        .scl_io_num = (gpio_num_t)this->parent_->get_scl_pin(),  // Récupérer SCL depuis ESPHome  
+        .clk_speed_hz = 400000, // 400kHz par défaut
+        .flags = {
+            .enable_internal_pullup = true,
+        },
+    };
+    
+    esp_lcd_i2c_bus_handle_t i2c_bus_handle;
+    esp_err_t ret = esp_lcd_new_i2c_bus(&i2c_bus_config, &i2c_bus_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create I2C bus for ESP-LCD: %s", esp_err_to_name(ret));
+        // Fallback: essayer la méthode directe (peut marcher sur certaines versions)
+        ESP_LOGW(TAG, "Trying direct I2C_NUM_0 access as fallback...");
         i2c_bus_handle = (esp_lcd_i2c_bus_handle_t)I2C_NUM_0;
     }
     
-    // Continuer avec votre code original
+    // Étape 2: Continuer avec votre code original
     esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GSL3680_CONFIG();
-    esp_err_t ret = esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &this->tp_io_handle_);
+    ret = esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &this->tp_io_handle_);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to create panel IO: %s", esp_err_to_name(ret));
         this->mark_failed();
