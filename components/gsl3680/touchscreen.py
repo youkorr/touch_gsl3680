@@ -31,16 +31,7 @@ CONFIG_SCHEMA = (
     .extend(i2c.i2c_device_schema(0x40))  # adresse par défaut 0x40
 )
 
-# Champs supplémentaires pour driver_ng
-CONF_SDA = "sda_pin"
-CONF_SCL = "scl_pin"
 
-CONFIG_SCHEMA = CONFIG_SCHEMA.extend(
-    {
-        cv.Required(CONF_SDA): pins.internal_gpio_output_pin_schema,
-        cv.Required(CONF_SCL): pins.internal_gpio_output_pin_schema,
-    }
-)
 
 
 async def to_code(config):
