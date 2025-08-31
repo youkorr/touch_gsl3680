@@ -5,98 +5,92 @@ namespace esphome {
 namespace gsl3680 {
 
 void GSL3680::setup() {
-    ESP_LOGI(TAG, "Initialize touch IO (I2C)");
+    ESP_LOGI(TAG, "Setting up GSL3680...");
     
-    // Au lieu d'utiliser (esp_lcd_i2c_bus_handle_t)I2C_NUM_0 directement,
-    // nous devons créer un bus I2C compatible avec ESPHome
+    // Reset du contrôleur
+    if (this->reset_pin_) {
+        this->reset_pin_->setup();
+        this->reset_pin_->digital_write(false);
+        delay(20);
+        this->reset_pin_->digital_write(true);
+        delay(100);
+        ESP_LOGD(TAG, "Reset complete");
+    }
     
-    // Configuration du bus I2C pour ESP-LCD
-    esp_lcd_i2c_bus_config_t i2c_bus_config = {
-        .i2c_port = I2C_NUM_0,
-        .sda_io_num = (gpio_num_t)this->parent_->get_sda_pin(),
-        .scl_io_num = (gpio_num_t)this->parent_->get_scl_pin(),
-        .clk_speed_hz = 400000,
-        .flags = {
-            .enable_internal_pullup = true,
-        },
-    };
+    // Configuration de l'interruption
+    if (this->interrupt_pin_) {
+        this->interrupt_pin_->setup();
+        this->attach_interrupt_(this->interrupt_pin_, gpio::INTERRUPT_ANY_EDGE);
+        ESP_LOGD(TAG, "Interrupt configured");
+    }
     
-    esp_lcd_i2c_bus_handle_t i2c_bus_handle = nullptr;
-    esp_err_t ret = esp_lcd_new_i2c_bus(&i2c_bus_config, &i2c_bus_handle);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create I2C bus for ESP-LCD: %s", esp_err_to_name(ret));
+    // Test de communication I2C
+    uint8_t test_data;
+    if (!this->read_byte(0xE0, &test_data)) {
+        ESP_LOGE(TAG, "Failed to communicate with GSL3680");
         this->mark_failed();
         return;
     }
+    ESP_LOGD(TAG, "I2C communication OK, status: 0x%02X", test_data);
     
-    // Configuration du panel IO I2C
-    esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GSL3680_CONFIG();
-    ret = esp_lcd_new_panel_io_i2c(i2c_bus_handle, &tp_io_config, &this->tp_io_handle_);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create panel IO: %s", esp_err_to_name(ret));
-        this->mark_failed();
-        return;
+    // Initialisation du GSL3680
+    this->write_byte(0xF0, 0x00);  // Page 0
+    delay(10);
+    this->write_byte(0xE4, 0x88);  // Software reset
+    delay(20);
+    this->write_byte(0xE4, 0x04);  // Clear reset
+    delay(20);
+    this->write_byte(0xE0, 0x01);  // Enable touch
+    delay(10);
+    
+    // Configuration des dimensions
+    this->x_raw_max_ = this->swap_x_y_ ? this->height_ : this->width_;
+    this->y_raw_max_ = this->swap_x_y_ ? this->width_ : this->height_;
+    
+    if (this->get_display()) {
+        this->x_raw_max_ = this->swap_x_y_ ? 
+            this->get_display()->get_native_height() : 
+            this->get_display()->get_native_width();
+        this->y_raw_max_ = this->swap_x_y_ ? 
+            this->get_display()->get_native_width() : 
+            this->get_display()->get_native_height();
     }
     
-    // Configuration des dimensions (comme votre original)
-    this->x_raw_max_ = this->swap_x_y_ ? 
-        this->get_display()->get_native_height() : 
-        this->get_display()->get_native_width();
-    this->y_raw_max_ = this->swap_x_y_ ? 
-        this->get_display()->get_native_width() : 
-        this->get_display()->get_native_height();
-    
-    // Configuration du contrôleur tactile (comme votre original)
-    esp_lcd_touch_config_t tp_cfg = {
-        .x_max = this->get_display()->get_native_width(),
-        .y_max = this->get_display()->get_native_height(),
-        .rst_gpio_num = (gpio_num_t)this->reset_pin_->get_pin(),
-        .levels = {
-            .reset = 0,
-            .interrupt = 0,
-        },
-        .flags = {
-            .swap_xy = 0,
-            .mirror_x = 1,
-            .mirror_y = 0,
-        },
-    };
-    
-    ESP_LOGI(TAG, "Initialize touch controller gsl3680");
-    ret = esp_lcd_touch_new_i2c_gsl3680(this->tp_io_handle_, &tp_cfg, &this->tp_);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create GSL3680 touch: %s", esp_err_to_name(ret));
-        this->mark_failed();
-        return;
-    }
-    
-    // Configuration de l'interruption (comme votre original)
-    this->interrupt_pin_->setup();
-    this->attach_interrupt_(this->interrupt_pin_, gpio::INTERRUPT_ANY_EDGE);
-    
-    ESP_LOGI(TAG, "GSL3680 setup complete");
+    ESP_LOGI(TAG, "GSL3680 setup complete - Resolution: %dx%d", this->x_raw_max_, this->y_raw_max_);
 }
 
 void GSL3680::update_touches() {
-    if (!this->tp_) {
+    uint8_t status;
+    if (!this->read_byte(0xE0, &status)) {
         return;
     }
     
-    // Votre code original exactement
-    uint16_t x[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
-    uint16_t y[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
-    uint16_t touch_strength[CONFIG_ESP_LCD_TOUCH_MAX_POINTS];
-    uint8_t touch_cnt;
+    uint8_t touch_cnt = status & 0x0F;
+    if (touch_cnt == 0 || touch_cnt > 10) {
+        return;
+    }
     
-    esp_lcd_touch_read_data(this->tp_);
-    bool touchpad_pressed = esp_lcd_touch_get_coordinates(this->tp_, (uint16_t*)&x, (uint16_t*)&y, (uint16_t*)&touch_strength, &touch_cnt, CONFIG_ESP_LCD_TOUCH_MAX_POINTS);
+    // Lire les données tactiles
+    uint8_t data[4 * 10];
+    if (!this->read_bytes(0x80, data, 4 * touch_cnt)) {
+        ESP_LOGV(TAG, "Failed to read touch data");
+        return;
+    }
     
-    if (touchpad_pressed) {
-        for (int i = 0; i < touch_cnt; i++) {
-            ESP_LOGV(TAG, "GSL3680::update_touches: [%d] %dx%d - %d, %d", i, x[i], y[i], touch_strength[i], touch_cnt);
-            this->add_raw_touch_position_(i, x[i], y[i]);
-        }
-        this->add_raw_touch_position_(0, x[0], y[0]); // Second touch coords are weird
+    // Parser les données - MÊME LOGIQUE que votre original
+    for (int i = 0; i < touch_cnt; i++) {
+        uint16_t x = (data[i * 4 + 1] << 8) | data[i * 4];
+        uint16_t y = (data[i * 4 + 3] << 8) | data[i * 4 + 2];
+        
+        ESP_LOGV(TAG, "GSL3680::update_touches: [%d] %dx%d - %d", i, x, y, touch_cnt);
+        this->add_raw_touch_position_(i, x, y);
+    }
+    
+    // Votre ligne originale pour les coordonnées bizarres du second touch
+    if (touch_cnt > 0) {
+        uint16_t x = (data[1] << 8) | data[0];
+        uint16_t y = (data[3] << 8) | data[2];
+        this->add_raw_touch_position_(0, x, y);
     }
 }
 
