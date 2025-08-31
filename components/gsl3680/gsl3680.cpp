@@ -3,6 +3,8 @@
 namespace esphome {
 namespace gsl3680 {
 
+DEPENDENCIES = ["i2c"]
+
 void GSL3680::setup() {
 
     esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GSL3680_CONFIG();
