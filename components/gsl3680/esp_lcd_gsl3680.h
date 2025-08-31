@@ -2,6 +2,7 @@
 #define _LCD_GSL3680_H
 
 #include "esp_lcd_touch.h"
+#include "driver/i2c_master.h"
 
 
 #define MAX_FINGER_NUM      3
@@ -78,11 +79,14 @@ struct fw_data
 #define ESP_LCD_TOUCH_IO_I2C_GSL3680_CONFIG()           \
     {                                       \
         .dev_addr = ESP_LCD_TOUCH_IO_I2C_GSL3680_ADDRESS, \
+        .scl_speed = 400000,                \
+        .scl_gpio_num = GPIO_NUM_NC,        \
+        .sda_gpio_num = GPIO_NUM_NC,        \
+        .i2c_port = I2C_NUM_0,              \
         .control_phase_bytes = 1,           \
         .dc_bit_offset = 0,                 \
-        .lcd_cmd_bits = 8,                 \
-        .flags =                            \
-        {                                   \
+        .lcd_cmd_bits = 8,                  \
+        .flags = {                          \
             .disable_control_phase = 1,     \
         }                                   \
     }
