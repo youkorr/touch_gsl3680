@@ -11,6 +11,8 @@
 namespace esphome {
 namespace gsl3680 {
 
+DEPENDENCIES = ["i2c"]
+
 constexpr static const char *const TAG = "touchscreen.gsl3680";
 
 class GSL3680 : public touchscreen::Touchscreen, public i2c::I2CDevice {
