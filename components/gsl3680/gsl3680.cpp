@@ -8,7 +8,7 @@ void GSL3680::setup() {
     
     // Configuration de l'interface I2C pour le touchscreen
     esp_lcd_panel_io_i2c_config_t tp_io_config = {
-        .dev_addr = this->i2c_address_,
+        .dev_addr = this->address_,
         .control_phase_bytes = 1,
         .dc_bit_offset = 0,
         .lcd_cmd_bits = 0,
@@ -19,10 +19,10 @@ void GSL3680::setup() {
         },
     };
     
-    ESP_LOGI(TAG, "Initialize touch IO (I2C) on bus %d, address 0x%02X", this->i2c_bus_num_, this->i2c_address_);
+    ESP_LOGI(TAG, "Initialize touch IO (I2C) on bus %d, address 0x%02X", this->bus_num_, this->address_);
     
     // Utilisation de l'API ESP-IDF native
-    esp_err_t ret = esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)this->i2c_bus_num_, &tp_io_config, &this->tp_io_handle_);
+    esp_err_t ret = esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)this->bus_num_, &tp_io_config, &this->tp_io_handle_);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to create I2C panel IO: %s", esp_err_to_name(ret));
         this->mark_failed();
@@ -47,7 +47,7 @@ void GSL3680::setup() {
             .mirror_x = 1,
             .mirror_y = 0,
         },
-    }
+    };
     
     ESP_LOGI(TAG, "Initialize touch controller GSL3680");
     ret = esp_lcd_touch_new_i2c_gsl3680(this->tp_io_handle_, &tp_cfg, &this->tp_);
