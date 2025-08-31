@@ -35,19 +35,19 @@ void GSL3680::setup() {
     
     // Configuration du contrôleur tactile
     esp_lcd_touch_config_t tp_cfg = {
-        .x_max = static_cast<uint16_t>(this->get_display()->get_native_width()),
-        .y_max = static_cast<uint16_t>(this->get_display()->get_native_height()),
-        .rst_gpio_num = this->reset_pin_ ? static_cast<gpio_num_t>(this->reset_pin_->get_pin()) : GPIO_NUM_NC,
+        .x_max = this->get_display()->get_native_width(),
+        .y_max = this->get_display()->get_native_height(),
+        .rst_gpio_num = (gpio_num_t)this->reset_pin_->get_pin(),
         .levels = {
             .reset = 0,
             .interrupt = 0,
         },
         .flags = {
-            .swap_xy = this->swap_x_y_ ? 1U : 0U,
-            .mirror_x = this->mirror_x_ ? 1U : 0U,
-            .mirror_y = this->mirror_y_ ? 1U : 0U,
+            .swap_xy = 0,
+            .mirror_x = 1,
+            .mirror_y = 0,
         },
-    };
+    }
     
     ESP_LOGI(TAG, "Initialize touch controller GSL3680");
     ret = esp_lcd_touch_new_i2c_gsl3680(this->tp_io_handle_, &tp_cfg, &this->tp_);
