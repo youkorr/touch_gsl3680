@@ -1,6 +1,6 @@
 from esphome import pins
 import esphome.codegen as cg
-from esphome.components import touchscreen
+from esphome.components import touchscreen, i2c
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_ID, 
@@ -9,13 +9,12 @@ from esphome.const import (
     CONF_ADDRESS,
 )
 
-CONF_I2C_BUS_ID = "i2c_bus_id"
+DEPENDENCIES = ["i2c"]
 
-# Plus d'héritage de i2c.I2CDevice pour éviter le conflit
 ns_ = cg.esphome_ns.namespace("gsl3680")
 cls_ = ns_.class_(
     "GSL3680",
-    touchscreen.Touchscreen,  # Seulement hériter de Touchscreen
+    touchscreen.Touchscreen,
 )
 
 CONFIG_SCHEMA = (
@@ -26,14 +25,19 @@ CONFIG_SCHEMA = (
             cv.Required(CONF_INTERRUPT_PIN): pins.internal_gpio_input_pin_schema,
             cv.Required(CONF_RESET_PIN): pins.internal_gpio_output_pin_schema,
             cv.Optional(CONF_ADDRESS, default=0x40): cv.i2c_address,
-            cv.Optional(CONF_I2C_BUS_ID, default=0): cv.int_range(min=0, max=1),
         }
     )
+    .extend(i2c.i2c_device_schema(0x40))
 )
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await touchscreen.register_touchscreen(var, config)
+    
+    # Récupération de la configuration I2C d'ESPHome
+    i2c_bus = await cg.get_variable(config["i2c_id"])
+    cg.add(var.set_i2c_bus(i2c_bus))
+    cg.add(var.set_i2c_address(config[CONF_ADDRESS]))
     
     # Configuration des pins
     if CONF_INTERRUPT_PIN in config:
@@ -43,7 +47,3 @@ async def to_code(config):
     if CONF_RESET_PIN in config:
         reset_pin = await cg.gpio_pin_expression(config[CONF_RESET_PIN])
         cg.add(var.set_reset_pin(reset_pin))
-    
-    # Configuration I2C native
-    cg.add(var.set_i2c_address(config[CONF_ADDRESS]))
-    cg.add(var.set_i2c_bus_id(config[CONF_I2C_BUS_ID]))
