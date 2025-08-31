@@ -1,7 +1,7 @@
 #include "gsl3680.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
-#include "esphome/components/i2c/i2c.h"  // Nouvelle API I2C
+#include "esphome/components/i2c/i2c.h"
 
 #ifdef GSL3680_ESP32P4_WORKAROUND
 #ifdef USE_ESP32
@@ -42,63 +42,23 @@ void GSL3680::setup() {
 
 #ifdef GSL3680_ESP32P4_WORKAROUND
   ESP_LOGW(TAG, "Using ESP32-P4 I2C workaround to avoid driver conflict");
-  try {
-    this->sda_pin_ = 7;   
-    this->scl_pin_ = 8;   
-    this->frequency_ = 100000; 
-    
-    ESP_LOGI(TAG, "Setting up native I2C with SDA=%d, SCL=%d, freq=%d", 
-             this->sda_pin_, this->scl_pin_, this->frequency_);
-    
-    i2c_master_bus_config_t bus_config = {};
-    bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
-    bus_config.i2c_port = I2C_NUM_0;
-    bus_config.scl_io_num = static_cast<gpio_num_t>(this->scl_pin_);
-    bus_config.sda_io_num = static_cast<gpio_num_t>(this->sda_pin_);
-    bus_config.glitch_ignore_cnt = 7;
-    bus_config.flags.enable_internal_pullup = false;
-    
-    i2c_master_bus_handle_t bus_handle;
-    esp_err_t ret = i2c_new_master_bus(&bus_config, &bus_handle);
-    if (ret != ESP_OK) {
-      ESP_LOGE(TAG, "Failed to create native I2C bus: %s", esp_err_to_name(ret));
-      this->native_i2c_handle_ = nullptr;
-    } else {
-      i2c_device_config_t dev_config = {};
-      dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-      dev_config.device_address = this->i2c_address_;
-      dev_config.scl_speed_hz = this->frequency_;
-      
-      i2c_master_dev_handle_t dev_handle;
-      ret = i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle);
-      if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to add I2C device: %s", esp_err_to_name(ret));
-        this->native_i2c_handle_ = nullptr;
-      } else {
-        this->native_i2c_handle_ = static_cast<void*>(dev_handle);
-        ESP_LOGI(TAG, "Native I2C setup completed successfully");
-      }
-    }
-    
-  } catch (...) {
-    ESP_LOGE(TAG, "Native I2C setup failed, falling back to ESPHome I2C");
-    this->native_i2c_handle_ = nullptr;
-  }
+
+  // Remplacement du try/catch par log simple
+  this->native_i2c_handle_ = nullptr;
 #endif
 
   this->reset_();
   delay(200);
 
-  i2c::I2CDevice device{i2c_bus_, i2c_address_};
   bool communication_ok = false;
   for (int retry = 0; retry < 5; retry++) {
     uint8_t test_data;
 #ifdef GSL3680_ESP32P4_WORKAROUND
     bool read_ok = (this->native_i2c_handle_ != nullptr) ? 
                    this->read_byte_workaround_(GSL3680_REG_STATUS, &test_data) :
-                   device.read_byte(GSL3680_REG_STATUS, &test_data);
+                   read_byte_i2c(GSL3680_REG_STATUS, &test_data);
 #else
-    bool read_ok = device.read_byte(GSL3680_REG_STATUS, &test_data);
+    bool read_ok = read_byte_i2c(GSL3680_REG_STATUS, &test_data);
 #endif
 
     if (read_ok) {
@@ -120,6 +80,9 @@ void GSL3680::setup() {
   this->setup_complete_ = true;
 }
 
+// ---------------------------
+// Hardware reset
+// ---------------------------
 void GSL3680::reset_() {
   if (this->reset_pin_ != nullptr) {
     ESP_LOGD(TAG, "Performing hardware reset");
@@ -132,11 +95,29 @@ void GSL3680::reset_() {
   }
 }
 
+// ---------------------------
+// I2C helpers
+// ---------------------------
+bool GSL3680::read_byte_i2c(uint8_t reg, uint8_t *data) {
+  i2c::I2CDevice device;
+  device.set_bus(this->i2c_bus_);
+  device.set_address(this->i2c_address_);
+  if (!device.write({reg})) return false;
+  return device.read(data, 1) == i2c::ERROR_OK;
+}
+
+bool GSL3680::read_bytes_i2c(uint8_t reg, uint8_t *data, size_t len) {
+  i2c::I2CDevice device;
+  device.set_bus(this->i2c_bus_);
+  device.set_address(this->i2c_address_);
+  if (!device.write({reg})) return false;
+  return device.read(data, len) == i2c::ERROR_OK;
+}
+
 #ifdef GSL3680_ESP32P4_WORKAROUND
 bool GSL3680::read_byte_workaround_(uint8_t reg, uint8_t *data) {
   if (this->native_i2c_handle_ == nullptr) {
-    i2c::I2CDevice device{i2c_bus_, i2c_address_};
-    return device.read_byte(reg, data);
+    return read_byte_i2c(reg, data);
   }
 
   i2c_master_dev_handle_t dev_handle = static_cast<i2c_master_dev_handle_t>(this->native_i2c_handle_);
@@ -146,8 +127,7 @@ bool GSL3680::read_byte_workaround_(uint8_t reg, uint8_t *data) {
 
 bool GSL3680::read_bytes_workaround_(uint8_t reg, uint8_t *data, size_t len) {
   if (this->native_i2c_handle_ == nullptr) {
-    i2c::I2CDevice device{i2c_bus_, i2c_address_};
-    return device.read(reg, data, len);
+    return read_bytes_i2c(reg, data, len);
   }
 
   i2c_master_dev_handle_t dev_handle = static_cast<i2c_master_dev_handle_t>(this->native_i2c_handle_);
@@ -156,16 +136,20 @@ bool GSL3680::read_bytes_workaround_(uint8_t reg, uint8_t *data, size_t len) {
 }
 #endif
 
+// ---------------------------
+// Loop
+// ---------------------------
 void GSL3680::loop() {
   if (!this->setup_complete_) return;
 
-  if (this->interrupt_pin_ != nullptr && this->interrupt_pin_->digital_read()) {
-    return;
-  }
+  if (this->interrupt_pin_ != nullptr && this->interrupt_pin_->digital_read()) return;
 
   this->update();
 }
 
+// ---------------------------
+// Update touches
+// ---------------------------
 void GSL3680::update_touches() {
   if (!this->setup_complete_) return;
 
@@ -180,14 +164,16 @@ void GSL3680::update_touches() {
   }
 }
 
+// ---------------------------
+// Get touches
+// ---------------------------
 bool GSL3680::get_touches_(uint8_t &touches, uint16_t *x, uint16_t *y) {
-  i2c::I2CDevice device{i2c_bus_, i2c_address_};
 #ifdef GSL3680_ESP32P4_WORKAROUND
   bool read_ok = (this->native_i2c_handle_ != nullptr) ? 
                  this->read_byte_workaround_(GSL3680_REG_STATUS, &touches) :
-                 device.read_byte(GSL3680_REG_STATUS, &touches);
+                 read_byte_i2c(GSL3680_REG_STATUS, &touches);
 #else
-  bool read_ok = device.read_byte(GSL3680_REG_STATUS, &touches);
+  bool read_ok = read_byte_i2c(GSL3680_REG_STATUS, &touches);
 #endif
   if (!read_ok) return false;
 
@@ -198,9 +184,9 @@ bool GSL3680::get_touches_(uint8_t &touches, uint16_t *x, uint16_t *y) {
 #ifdef GSL3680_ESP32P4_WORKAROUND
   read_ok = (this->native_i2c_handle_ != nullptr) ? 
             this->read_bytes_workaround_(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6) :
-            device.read(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6);
+            read_bytes_i2c(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6);
 #else
-  read_ok = device.read(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6);
+  read_ok = read_bytes_i2c(GSL3680_REG_TOUCH_DATA, touch_data, touches * 6);
 #endif
   if (!read_ok) return false;
 
@@ -215,6 +201,7 @@ bool GSL3680::get_touches_(uint8_t &touches, uint16_t *x, uint16_t *y) {
 
 }  // namespace gsl3680
 }  // namespace esphome
+
 
 
 
