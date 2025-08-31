@@ -1,35 +1,32 @@
 #pragma once
-#include "esphome/core/application.h"
+
 #include "esphome/core/component.h"
-#include "esphome/core/helpers.h"
-#include "esphome/components/touchscreen/touchscreen.h"
 #include "esphome/core/hal.h"
-#include "esp_lcd_gsl3680.h"
+#include "esphome/components/touchscreen/touchscreen.h"
+#include "esphome/components/i2c/i2c.h"
 
 namespace esphome {
 namespace gsl3680 {
 
-constexpr static const char *const TAG = "touchscreen.gsl3680";
+static const char *const TAG = "touchscreen.gsl3680";
 
-class GSL3680 : public touchscreen::Touchscreen {
-    public:
-        void setup() override;
-        void update_touches() override;
-        void set_interrupt_pin(InternalGPIOPin *pin) { this->interrupt_pin_ = pin; }
-        void set_reset_pin(InternalGPIOPin *pin) { this->reset_pin_ = pin; }
-        void set_i2c_bus(int bus_num) { this->i2c_bus_num_ = bus_num; }
-        void set_i2c_address(uint8_t address) { this->i2c_address_ = address; }
+class GSL3680 : public touchscreen::Touchscreen, public i2c::I2CDevice {
+ public:
+  void setup() override;
+  void loop() override;
+  void update_touches() override;
 
-    protected:
-        InternalGPIOPin *interrupt_pin_{};
-        InternalGPIOPin *reset_pin_{};
-        int i2c_bus_num_{0};
-        uint8_t i2c_address_{0x40}; // Adresse par défaut du GSL3680
-        size_t width_{1280};
-        size_t height_{800};
-        esp_lcd_touch_handle_t tp_{};
-        esp_lcd_panel_io_handle_t tp_io_handle_{};
+  void set_interrupt_pin(InternalGPIOPin *interrupt_pin) { interrupt_pin_ = interrupt_pin; }
+  void set_reset_pin(InternalGPIOPin *reset_pin) { reset_pin_ = reset_pin; }
+
+ protected:
+  void reset_();
+  bool get_touches_(uint8_t &touches, uint16_t *x, uint16_t *y);
+  
+  InternalGPIOPin *interrupt_pin_{nullptr};
+  InternalGPIOPin *reset_pin_{nullptr};
+  bool setup_complete_{false};
 };
 
-} // namespace gsl3680
-} // namespace esphome
+}  // namespace gsl3680
+}  // namespace esphome
