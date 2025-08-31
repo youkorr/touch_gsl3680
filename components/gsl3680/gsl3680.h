@@ -3,7 +3,7 @@
 #include "esphome/core/application.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
-#include "esphome/components/i2c/i2c_bus_esp_idf.h"
+#include "esphome/components/i2c/i2c_device.h" 
 #include "esphome/components/touchscreen/touchscreen.h"
 #include "esphome/core/hal.h"
 #include "esp_lcd_gsl3680.h"
