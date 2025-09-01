@@ -2,7 +2,7 @@
 
 #include "esphome/core/log.h"
 #include "esp_lcd_panel_io.h"
-#include "esp_lcd_touch_gsl3680.h"
+#include "esp_lcd_touch.h"
 #include <driver/i2c_master.h>
 
 namespace esphome {
