@@ -10,17 +10,11 @@ namespace gsl3680 {
 void GSL3680::setup() {
   ESP_LOGI(TAG, "Initialize GSL3680 touchscreen");
 
-  // --- Récupère le handle I2C depuis i2c::I2CDevice ---
-  i2c_master_bus_handle_t i2c_handle = (i2c_master_bus_handle_t)this->i2c_;
-  if (i2c_handle == nullptr) {
-    ESP_LOGE(TAG, "I2C bus handle not available!");
-    this->mark_failed();
-    return;
-  }
-
-  // --- Création du panneau tactile ---
+  // --- Création du panneau tactile (legacy cast I2C_NUM_0) ---
   esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GSL3680_CONFIG();
-  esp_err_t ret = esp_lcd_new_panel_io_i2c(i2c_handle, &tp_io_config, &this->tp_io_handle_);
+  esp_err_t ret = esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)I2C_NUM_0,
+                                           &tp_io_config,
+                                           &this->tp_io_handle_);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "Failed to create panel IO: %s", esp_err_to_name(ret));
     this->mark_failed();
@@ -80,13 +74,13 @@ void GSL3680::update_touches() {
       ESP_LOGV(TAG, "Touch[%d] = %d x %d (strength=%d)", i, x[i], y[i], touch_strength[i]);
       this->add_raw_touch_position_(i, x[i], y[i]);
     }
-    // Dupliquer premier point si multitouch corrompu
     this->add_raw_touch_position_(0, x[0], y[0]);
   }
 }
 
 }  // namespace gsl3680
 }  // namespace esphome
+
 
 
 
