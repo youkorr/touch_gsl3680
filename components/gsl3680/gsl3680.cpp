@@ -15,7 +15,7 @@
 namespace esphome {
 namespace gsl3680 {
 
-static const char *const TAG = "touchscreen.gsl3680";
+//static const char *const TAG = "touchscreen.gsl3680";
 
 void GSL3680::setup() {
   ESP_LOGI(TAG, "Initialize touch IO (I2C)");
