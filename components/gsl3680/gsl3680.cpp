@@ -10,8 +10,8 @@ namespace gsl3680 {
 void GSL3680::setup() {
   ESP_LOGI(TAG, "Initialize GSL3680 touchscreen");
 
-  // --- Récupère le handle I2C déjà géré par ESPHome ---
-  auto i2c_handle = (i2c_master_bus_handle_t)this->get_i2c_device()->get_bus_handle();
+  // --- Récupère le handle I2C depuis i2c::I2CDevice ---
+  i2c_master_bus_handle_t i2c_handle = (i2c_master_bus_handle_t)this->i2c_;
   if (i2c_handle == nullptr) {
     ESP_LOGE(TAG, "I2C bus handle not available!");
     this->mark_failed();
@@ -87,6 +87,7 @@ void GSL3680::update_touches() {
 
 }  // namespace gsl3680
 }  // namespace esphome
+
 
 
 
