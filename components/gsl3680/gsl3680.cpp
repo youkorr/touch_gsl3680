@@ -1,7 +1,7 @@
 #include "gsl3680.h"
 #include "driver/i2c_master.h"
 #include "esp_lcd_panel_io.h"
-#include "esp_lcd_touch_gsl3680.h"
+#include "esp_lcd_touch.h"
 
 namespace esphome {
 namespace gsl3680 {
