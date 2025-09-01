@@ -2,8 +2,7 @@
 
 #include "esphome/core/log.h"
 #include "esp_lcd_panel_io.h"
-#include "esp_lcd_touch.h"
-#include <driver/i2c_master.h>
+#include "esp_lcd_touch_gsl3680.h"
 
 namespace esphome {
 namespace gsl3680 {
@@ -11,42 +10,17 @@ namespace gsl3680 {
 void GSL3680::setup() {
   ESP_LOGI(TAG, "Initialize GSL3680 touchscreen");
 
-  // --- Création d'un bus I2C maître (driver_ng obligatoire) ---
-  i2c_master_bus_config_t bus_config = {
-      .i2c_port = I2C_NUM_0,
-      .sda_io_num = this->sda_pin_,  // à définir dans ton header ou constructeur
-      .scl_io_num = this->scl_pin_,
-      .clk_source = I2C_CLK_SRC_DEFAULT,
-      .glitch_ignore_cnt = 7,
-      .flags = {
-          .enable_internal_pullup = true,
-      },
-  };
-
-  i2c_master_bus_handle_t i2c_bus_handle;
-  esp_err_t ret = i2c_new_master_bus(&bus_config, &i2c_bus_handle);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to create master I2C bus: %s", esp_err_to_name(ret));
+  // --- Récupère le handle I2C déjà géré par ESPHome ---
+  auto i2c_handle = (i2c_master_bus_handle_t)this->get_i2c_device()->get_bus_handle();
+  if (i2c_handle == nullptr) {
+    ESP_LOGE(TAG, "I2C bus handle not available!");
     this->mark_failed();
     return;
   }
 
-  // --- Créer le bus ESP-LCD à partir du master bus ---
-  esp_lcd_i2c_bus_config_t lcd_i2c_cfg = {
-      .bus_handle = i2c_bus_handle,
-  };
-
-  esp_lcd_i2c_bus_handle_t lcd_bus_handle;
-  ret = esp_lcd_new_i2c_bus(&lcd_i2c_cfg, &lcd_bus_handle);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to create ESP-LCD I2C bus: %s", esp_err_to_name(ret));
-    this->mark_failed();
-    return;
-  }
-
-  // --- Création du panneau tactile GSL3680 ---
+  // --- Création du panneau tactile ---
   esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GSL3680_CONFIG();
-  ret = esp_lcd_new_panel_io_i2c(lcd_bus_handle, &tp_io_config, &this->tp_io_handle_);
+  esp_err_t ret = esp_lcd_new_panel_io_i2c(i2c_handle, &tp_io_config, &this->tp_io_handle_);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "Failed to create panel IO: %s", esp_err_to_name(ret));
     this->mark_failed();
@@ -59,7 +33,7 @@ void GSL3680::setup() {
   this->y_raw_max_ = this->swap_x_y_ ? this->get_display()->get_native_width()
                                      : this->get_display()->get_native_height();
 
-  // --- Config du contrôleur tactile ---
+  // --- Configuration du contrôleur tactile ---
   esp_lcd_touch_config_t tp_cfg = {
       .x_max = static_cast<uint16_t>(this->get_display()->get_native_width()),
       .y_max = static_cast<uint16_t>(this->get_display()->get_native_height()),
@@ -113,6 +87,7 @@ void GSL3680::update_touches() {
 
 }  // namespace gsl3680
 }  // namespace esphome
+
 
 
 
